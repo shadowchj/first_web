@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-import asyncio, aiomysql,logging
+import asyncio, aiomysql, logging
 
 #异步编程原则：系统每一层都必须异步
 #aiomysql为MySQL提供了异步IO驱动
@@ -92,6 +92,43 @@ def create_args_string(num):
 		L.append('?')
 	return ', '.join(L)
 
+class Field(object):
+#column_type为数据类型
+	def __init__(self, name, column_type, primary_key, default):
+		self.name = name
+		self.column_type = column_type
+		self.primary_key = primary_key
+		self.default = default
+	
+	def __str__(self):
+		return '<%s, %s:%s>' % (self.__class__.__name__, self.column_type, self.name)
+
+
+class StringField(Field):
+	"""映射varchar的StringField"""
+	def __init__(self, name=None, primary_key=False, default=None, c_type='varchar(100)'):
+		super().__init__(name, c_type, primary_key, default)
+
+class IntField(Field):
+	"""映射int的IntField"""
+	def __init__(self, name=None, primary_key=False, default=0, c_type='int'):
+		super().__init__(name, c_type, primary_key, default)
+
+class FloatField(Field):
+	'''映射float值的FloatField'''
+	def __init__(self, name=None, primary_key=False, default=0.0, c_type='real'):
+		super().__init__(name, c_type, primary_key, default)
+
+class BooleanField(Field):
+	"""映射bool值的BooleanField"""
+	def __init__(self, name=None, primary_key=False, default=False, c_type='boolean'):
+		super().__init__(name, c_type, primary_key, default)
+
+class TextField(Field):
+	"""映射文本值的TextField"""
+	def __init__(self, name=None, primary_key=False, default=None, c_type='text'):
+		super().__init__(name,c_type,primary_key,default)
+		
 
 '''-------------------------------分割线-------------------------------------'''
 class ModelMetaclass(type):
@@ -148,8 +185,7 @@ class ModelMetaclass(type):
 		return type.__new__(cls, name, bases, attrs)
 
 
-'''Model从dict继承，所以具备有dict的功能，同时又实现了特殊方法__getattr__()和
-__setattr__()，因此又可以像引用普通字段那样子写:user['id'] / user.id'''
+'''Model从dict继承，所以具备有dict的功能，因此可以像引用普通字段那样子写:user['id'] / user.id'''
 class Model(dict, metaclass=ModelMetaclass):
 	"""定义所有ORM映射的基类Model
 	元类metaclass=ModelMetaclass
@@ -176,7 +212,8 @@ class Model(dict, metaclass=ModelMetaclass):
 		return getattr(self, key)
 
 	def getValueOrDefault(self, key):
-		value = getattr(self, key)
+		#如果找不到则返回None，否则会引发KeyError
+		value = getattr(self, key, None)
 		if value is None:
 			field = self.__mappings__[key]
 			if field.default is not None:
@@ -193,6 +230,32 @@ class Model(dict, metaclass=ModelMetaclass):
 		if len(rs) == 0:
 			return None
 		return cls(**rs[0])
+
+	@classmethod
+	async def findAll(cls, where=None, args=None, **kw):
+		sql = [cls.__select__]
+		if where:
+			sql.append('where')
+			sql.append(where)
+		if args is None:
+			args = []
+		orderBy = kw.get('orderBy', None)
+		if orderBy:
+			sql.append('order by')
+			sql.append(orderBy)
+		limit = kw.get('limit', None)
+		if limit is not None:
+			sql.append('limit')
+			if isinstance(limit, int):
+				sql.append('?')
+				args.append(limit)
+			elif isinstance(limit, tuple) and len(limit) == 2:
+				sql.append('?','?')
+				args.extend(limit)
+			else:
+				raise ValueError('Invalid limit values : %s' % str(limit))
+		rs = await select(' '.join(sql), args)
+		return [cls(**r) for r in rs]
 
 	async def save(self):
 		#设置除主键外的fields
@@ -221,38 +284,7 @@ class Model(dict, metaclass=ModelMetaclass):
 
 
 
-class Field(object):
-#column_type为数据类型
-	def __init__(self, name, column_type, primary_key, default):
-		self.name = name
-		self.column_type = column_type
-		self.primary_key = primary_key
-		self.default = default
-	
-	def __str__(self):
-		return '<%s, %s:%s>' % (self.__class__.__name__, self.column_type, self.name)
 
-
-class StringField(Field):
-	"""映射varchar的StringField"""
-	def __init__(self, name=None, primary_key=False, default=None, c_type='varchar(100)'):
-		super().__init__(name, c_type, primary_key, default)
-
-class IntField(Field):
-	"""映射int的IntField"""
-	def __init__(self, name=None, primary_key=False, default=0,c_type='int'):
-		super().__init__(name, c_type, primary_key, default)
-
-class BooleanField(Field):
-	"""映射bool值的BooleanField"""
-	def __init__(self, name=None, primary_key=False, default=None,c_type='boolean'):
-		super().__init__(name, c_type, primary_key, default)
-
-class TextField(Field):
-	"""映射文本值的TextField"""
-	def __init__(self, name=None,primary_key=False,default=None,c_type='text'):
-		super().__init__(name,c_type,primary_key,default)
-		
 
 
 
