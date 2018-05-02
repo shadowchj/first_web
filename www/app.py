@@ -29,8 +29,19 @@ async def auth(request, handler):
 		if user:
 			logging.info('set current user: %s' % user.email)
 			request.__user__ = user
-		if reqeust.path.startswith('/manage/') and (request.__user__ is None or not request.__user__.admin):
+		if request.path.startswith('/manage/') and (request.__user__ is None or not request.__user__.admin):
 			return web.HTTPFound('signin')
+	return await handler(request)
+
+@middleware
+async def parse_data(request, handler):
+	if request.method == 'POST':
+		if request.content_type.startswith('application/json'):
+			request.__data__ = await request.json()
+			logging.info('request json: %s' % str(request.__data__))
+		elif request.content_type.startswith('application/x-www-form-urlencoded'):
+			request.__data__ = await request.post()
+			logging.info('request form: %s' % str(request.__data__))
 	return await handler(request)
 
 async def response_factory(app,handler):
@@ -59,7 +70,8 @@ async def response_factory(app,handler):
 				return resp
 			else:
 				'''get_template()方法返回Template对象，调用其render()方法传入r渲染模板'''
-				resp = web.Response(body=app['__template__'].get_template(template).render(**r))
+				r['__user__'] = request.__user__
+				resp = web.Response(body=app['__template__'].get_template(template).render(**r).encode('utf-8'))
 				resp.content_type = 'text/html;charset=utf-8'
 				return resp
 		#返回响应码

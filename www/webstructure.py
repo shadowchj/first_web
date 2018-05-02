@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-import functools, asyncio, inspect, logging, os, json
+import functools, asyncio, inspect, logging, os
 from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
 from ApiError import APIError

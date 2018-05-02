@@ -1,17 +1,19 @@
 # -*- coding:utf-8 -*-
 from webstructure import get, post
 from aiohttp import web
-import asyncio, time, re, json, hashlib, base64
+import asyncio, time, re, json, hashlib, base64, logging
 from Models import Blog, User, next_id, Comment
 from ApiError import APIValueError, APIResourceNotFoundError
 from config import configs
 
+#匹配邮箱
 _RE_EMAIL = re.compile(r'^[a-z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
 _RE_SHA1 = re.compile(r'^[0-9a-f]{40}$')
 COOKIE_NAME = 'awesession'
 _COOKIE_KEY = configs['session']['secret']
 
 def user2cookie(user, max_age):
+	#存储cookie的截止时间
 	expires = str(int(time.time() + max_age))
 	s = '%s-%s-%s-%s' % (user.id, user.passwd, expires, _COOKIE_KEY)
 	L = [user.id, expires,hashlib.sha1(s.encode('utf-8')).hexdigest()]
@@ -25,6 +27,7 @@ async def cookie2user(cookie_str):
 		if len(L) != 3:
 			return None
 		uid, expires, sha1 = L
+		#如果截止时间小于现在的时间，代表cookie过期了
 		if int(expires) < time.time():
 			return None
 		user = await User.find(uid)
@@ -41,29 +44,30 @@ async def cookie2user(cookie_str):
 
 @get('/')
 def index(request):
-    summary = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
-    blogs = [
-        Blog(id='1', name='Test Blog', summary=summary, created_at=time.time()-120),
-        Blog(id='2', name='Something New', summary=summary, created_at=time.time()-3600),
-        Blog(id='3', name='Learn Swift', summary=summary, created_at=time.time()-7200)
-    ]
-    return {
-        '__template__': 'blogs.html',
-        'blogs': blogs
-    }
+	summary = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
+	blogs = [
+		Blog(id='1', name='Test Blog', summary=summary, created_at=time.time()-120),
+		Blog(id='2', name='Something New', summary=summary, created_at=time.time()-3600),
+		Blog(id='3', name='Learn Swift', summary=summary, created_at=time.time()-7200)
+	]
+	return {
+		'__template__': 'blogs.html',
+		'blogs': blogs
+	}
 
 @get('/register')
 def register():
-    return {
-        '__template__': 'register.html'
-    }
+	return {
+		'__template__': 'register.html'
+	}
 
 @get('/signin')
 def signin():
-    return {
-        '__template__': 'signin.html'
-    }
+	return {
+		'__template__': 'signin.html'
+	}
 
+#登陆验证邮箱与密码是否正确
 @post('/api/authenticate')
 async def authenticate(*, email, passwd):
 	if not email:
@@ -97,6 +101,7 @@ def signout(request):
 	logging.info('user signed out.')
 	return r
 
+#注册页面时需要填写的信息：邮箱，用户名，密码
 @post('/api/users')
 async def api_register_user(*, email, name, passwd):
 	#str.strip([chars])移除字符串头尾指定的字符(默认空格)
@@ -110,12 +115,16 @@ async def api_register_user(*, email, name, passwd):
 	if len(users) > 0:
 		raise APIValueError('register:failed', 'email', 'Email is already in use.')
 	uid = next_id()
+	# 加密形式:next_id():passwd，数据库中保存其摘要hexdigest()。与上面验证的时候要保持一致
 	sha1_passwd = '%s:%s' % (uid, passwd)
 	user = User(id=uid, name=name.strip(),email=email,passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(),image='block')
 	await user.save()
 	r = web.Response()
+	#set_cookie(name,value,*,path='/',expires=None,domain=None,max_age=None,secure=None,httponly=None,version=None)
+	#name:cookie名称(str),value:cookie值(str),expires在http1.1被遗弃，使用max_age代替
+	#path(str):指定Cookie应用于的url的子集，默认'/'
 	r.set_cookie(COOKIE_NAME, user2cookie(user, 86400), max_age=86400, httponly=True)
-	user.passwd = '*******'
+	user.passwd = '******'
 	r.content_type = 'application/json'
 	r.body = json.dumps(users, ensure_ascii=False).encode('utf-8')
 	return r

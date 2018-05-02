@@ -5,60 +5,58 @@
 {% block beforehead %}
 
 <script>
-	function validateEmail(email){
-		var re = /^[a-z0-9\.\-\_]+\@[\.a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$/;
-		return re.test(email.toLowerCase());
-	}
-	//jQuery语法 $定义JQuery
-	$(function (){
-		var vm = new Vue({
-			el: '#vm',
-			data:{
-				name:'',
-				email:'',
-				password1:'',
-				password2:''
-			},
-			methods:{
-				submit:function (event){
-					event.preventDefault();
-					var $form = $('#vm');
-					//trim删除字符串两端的空白字符
-					if (! this.name.trim()) {
-						return $form.showFormError('请输入名字');
-					}
-					if (! validateEmail(this.email.trim().toLowerCase())){
-						return $from.showFormError('请输入正确的Emali地址');
-					}
-					if (this.password1.length < 6){
-						return $form.showFormError('口令长度至少为6个字符');
-					}
-					if (this.password1 !== this.password2){
-						return $form.showFormError('两次输入的口令不一致');
-					}
-					var email = this.email.trim().toLowerCase();
-					$form.postJSON('api/users',{
-						name:this.name.trim(),
-						email:email,
-						passwd:CryptoJS.SHA1(email+':'+this.password1).toString()
-					},function (err, r){
-						if (err) {
-							return $form.showFormError(err);
-						}
-						return location.assign('/');
-					})
-				}
-			}
-		});
-		$('#vm').show();
-	});
+function validateEmail(email) {
+    var re = /^[a-z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$/;
+    return re.test(email.toLowerCase());
+}
+$(function () {
+    var vm = new Vue({
+        el: '#vm',
+        data: {
+            name: '',
+            email: '',
+            password1: '',
+            password2: ''
+        },
+        methods: {
+            submit: function (event) {
+                event.preventDefault();
+                var $form = $('#vm');
+                if (! this.name.trim()) {
+                    return $form.showFormError('请输入名字');
+                }
+                if (! validateEmail(this.email.trim().toLowerCase())) {
+                    return $form.showFormError('请输入正确的Email地址');
+                }
+                if (this.password1.length < 6) {
+                    return $form.showFormError('口令长度至少为6个字符');
+                }
+                if (this.password1 !== this.password2) {
+                    return $form.showFormError('两次输入的口令不一致');
+                }
+                var email = this.email.trim().toLowerCase();
+                $form.postJSON('/api/users', {
+                    name: this.name.trim(),
+                    email: email,
+                    passwd: CryptoJS.SHA1(email + ':' + this.password1).toString()
+                }, function (err, r) {
+                    if (err) {
+                        return $form.showFormError(err);
+                    }
+                    return location.assign('/');
+                });
+            }
+        }
+    });
+    $('#vm').show();
+});
 </script>
 
 {% endblock %}
 
 {% block content %}
 
-	 <div class="uk-width-2-3">
+    <div class="uk-width-2-3">
         <h1>欢迎注册！</h1>
         <form id="vm" v-on="submit: submit" class="uk-form uk-form-stacked">
             <div class="uk-alert uk-alert-danger uk-hidden"></div>
