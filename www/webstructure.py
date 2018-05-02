@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
-import functools, asyncio, inspect, logging, os
-from aiohttp.web import middleware
+import functools, asyncio, inspect, logging, os, json
 from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
+from ApiError import APIError
 
 
 
@@ -157,11 +157,11 @@ class RequestHandler(object):
 				if not name in kw:
 					return web.HTTPBadRequest('Missing argument: %s' % name)
 		logging.info('call with args: %s' % str(kw))
-		#try:
-		r = await self._func(**kw)
-		return r
-		#except APIError as e:
-			#return dict(error=e.error, data=e.data, message=e.message)
+		try:
+			r = await self._func(**kw)
+			return r
+		except APIError as e:
+			return dict(error=e.error, data=e.data, message=e.message)
 
 
 def  add_route(app, fn):
@@ -171,6 +171,7 @@ def  add_route(app, fn):
 		raise ValueError('@get or @post not defined in %s.' % str(fn))
 	if not asyncio.iscoroutinefunction(fn) and not inspect.isgeneratorfunction(fn):
 		fn = asyncio.coroutine(fn)
+	logging.info('%s is a coroutine:%s' % (fn.__name__, asyncio.iscoroutinefunction(fn)))
 	logging.info('add route %s %s => %s(%s)' %(method, path, fn.__name__, ','.join(inspect.signature(fn).parameters.keys())))
 	app.router.add_route(method, path, RequestHandler(app, fn))
 
@@ -243,48 +244,3 @@ def datetime_filter(t):
 	dt = datetime.fromtimestamp(t)
 	return u'%s-%s-%s' % (dt.year, dt.month, dt.day)
 
-#aiohttp V2.3以后的新式写法，教程为旧式写法(也可以混用)，参数handler是视图函数
-@middleware
-async def logger(request, handler):
-	logging.info('Request: %s %s' % (request.method, request.path))
-	#继续处理请求
-	return await handler(request)
-
-
-async def response_factory(app,handler):
-	async def response(request):
-		r = await handler(request)
-		if isinstance(r, web.StreamResponse):
-			return r
-		if isinstance(r, bytes):
-			resp = web.Response(body=r)
-			resp.content_type = 'application/octet-stream'
-			return resp
-		if isinstance(r, str):
-			resp = web.Response(body=r.encode('utf-8'))
-			resp.content_type = 'text/html;charset=utf-8'
-			return resp
-		if isinstance(r,dict):
-			#在后续构造视图函数返回值时，会加入__template__值，用以选择渲染的模板
-			template = r.get('__template__', None)
-			if template is None:
-				'''不带模板信息，返回json对象
-				ensure_ascii:默认True，仅能输出ascii格式数据。故设置为False
-				#default: r对象会先被传入default中的函数进行处理，然后才被序列化为json对象
-				__dict__: 以dict形式返回对象属性和值的映射，一般的class实例都有一个__dict__属性'''
-				resp = web.Response(body=json.dumps(r, ensure_ascii=False, default=lambda obj: obj.__dict__).encode('utf-8'))
-				resp.content_type = 'application/json;charset=utf-8'
-				return resp
-			else:
-				'''get_template()方法返回Template对象，调用其render()方法传入r渲染模板'''
-				resp = web.Response(body=app['__template__'].get_template(template).render(**r))
-				resp.content_type = 'text/html;charset=utf-8'
-				return resp
-		#返回响应码
-		if isinstance(r, int) and (600>r>=100):
-			resp = web.Response(status=r)
-		#default
-		resp = web.Response(body=str(r).encode('utf-8'))
-		resp.content_type = 'text/plain;charset=utf-8'
-		return resp
-	return response
