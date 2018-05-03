@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-import functools, asyncio, inspect, logging, os
+import functools, asyncio, inspect, logging, os, time
 from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
 from ApiError import APIError
@@ -32,6 +32,7 @@ def post(path):
 			return func(*args, **kw)
 		wrapper.__method__ = 'POST'
 		wrapper.__route__ = path
+		return wrapper
 	return decorator
 
 #----------------使用Inspect模块，检查视图函数的参数，以下函数的参数fn均为视图函数------------------
@@ -164,7 +165,7 @@ class RequestHandler(object):
 			return dict(error=e.error, data=e.data, message=e.message)
 
 
-def  add_route(app, fn):
+def add_route(app, fn):
 	method = getattr(fn, '__method__', None)
 	path = getattr(fn, '__route__', None)
 	if path is None or method is None:

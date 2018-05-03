@@ -6,7 +6,7 @@ import asyncio, os, json, time, webstructure,ormstructure
 from datetime import datetime
 from aiohttp import web
 from webstructure import init_jinja2, add_routes, add_static, datetime_filter
-from handlers import user2cookie,COOKIE_NAME
+from handlers import user2cookie,COOKIE_NAME, cookie2user
 from aiohttp.web import middleware
 
 #日志文件简单配置basicConfig(filename/stream,filemode='a',format,datefmt,level)
@@ -46,6 +46,7 @@ async def parse_data(request, handler):
 
 async def response_factory(app,handler):
 	async def response(request):
+		logging.info('Response handler....')
 		r = await handler(request)
 		if isinstance(r, web.StreamResponse):
 			return r
@@ -94,7 +95,7 @@ async def init(LOOP):
 	#middleware是一种拦截器，一个URL在被某个函数处理前，可以经过一系列的middleware处理
 	#详细定义在webstructure.py
 	await ormstructure.create_pool(LOOP,**config.configs['db'])
-	app = web.Application(loop=LOOP, middlewares=[logger, auth, response_factory])
+	app = web.Application(loop=LOOP, middlewares=[logger, auth, parse_data, response_factory])
 	init_jinja2(app, filters=dict(datetime=datetime_filter))
 	add_routes(app,'handlers')
 	add_static(app)
