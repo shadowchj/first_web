@@ -51,7 +51,7 @@ async def create_pool(LOOP, **kw):
 
 #封装sql的select语句
 async def select(sql, args, size=None):
-	log(sql,args)
+	#log(sql,args)
 	global __pool
 	# pool常用的连接方式
 	with (await __pool) as conn:
@@ -67,12 +67,12 @@ async def select(sql, args, size=None):
 			#返回所有行内容
 			rs = await cur.fetchall()
 		await cur.close()
-		logging.info('rows returned: %s' % len(rs))
+		#logging.info('rows returned: %s' % len(rs))
 		return rs
 
 #封装sql的其它执行语句，比如增加，删除等操作
 async def execute(sql,args):
-	log(sql,args)
+	#log(sql,args)
 	with (await __pool) as conn:
 		try:
 			cur = await conn.cursor()
@@ -144,7 +144,7 @@ class ModelMetaclass(type):
 			return type.__new__(cls, name, bases, attrs)
 		#获取table名称:因为继承了dict所以有get方法，如果没有该类属性则默认tableName=类名
 		tableName = attrs.get('__table__', None) or name
-		logging.info('found model: %s (table: %s)' % (name, tableName))
+		#logging.info('found model: %s (table: %s)' % (name, tableName))
 		#获取所有的field(包含主键在内的field):
 		mappings = dict()
 		#存储主键外的field
@@ -153,7 +153,7 @@ class ModelMetaclass(type):
 		#注意，这里的attrs的key是字段名,value是字段实例,不是字段的具体值
 		for k, v in attrs.items():
 			if isinstance(v, Field):
-				logging.info(' found mapping: %s ==> %s' % (k, v))
+				#logging.info(' found mapping: %s ==> %s' % (k, v))
 				mappings[k] = v
 				if v.primary_key:
 					#找到主键
@@ -228,6 +228,7 @@ class Model(dict, metaclass=ModelMetaclass):
 		#定义找主键的类方法，以类的形式返回
 		rs = await select('%s where `%s`=?' % (cls.__select__, cls.__primary_key__), [pk], 1)
 		if len(rs) == 0:
+			log('find return none')
 			return None
 		return cls(**rs[0])
 
@@ -250,12 +251,25 @@ class Model(dict, metaclass=ModelMetaclass):
 				sql.append('?')
 				args.append(limit)
 			elif isinstance(limit, tuple) and len(limit) == 2:
-				sql.append('?','?')
+				sql.append('?,?')
 				args.extend(limit)
 			else:
 				raise ValueError('Invalid limit values : %s' % str(limit))
 		rs = await select(' '.join(sql), args)
 		return [cls(**r) for r in rs]
+
+	@classmethod
+	async def findNumber(cls, selectField, where=None, args=None):
+		sql = ['select %s as _num_ from `%s`' % (selectField, cls.__table__)]
+		log(sql)
+		if where:
+			sql.append('where')
+			sql.append(where)
+		rs = await select(' '.join(sql), args, 1)
+		if len(rs) == 0:
+			log('find return none')
+			return None
+		return rs[0]['_num_']
 
 	async def save(self):
 		#设置除主键外的fields
@@ -281,15 +295,3 @@ class Model(dict, metaclass=ModelMetaclass):
 		rows = await execute(self.__update__,args)
 		if rows != 1:
 			logging.warn('failed to update by primary key: affected rows: %s' % rows)
-
-
-
-
-
-
-
-
-
-				
-
-	

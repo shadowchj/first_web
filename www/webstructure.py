@@ -3,6 +3,7 @@ import functools, asyncio, inspect, logging, os, time
 from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
 from ApiError import APIError
+from urllib import parse
 
 
 
@@ -125,9 +126,9 @@ class RequestHandler(object):
 				qs = request.query_string
 				if qs:
 					kw = dict()
-					#urlib.parse.parse_qs(qs,keep_blank_values=False,strict_parsing=false,encoding='utf-8',errors='replace')
+					#urllib.parse.parse_qs(qs,keep_blank_values=False,strict_parsing=false,encoding='utf-8',errors='replace')
 					#解析作为字符串参数给出的查询字符串，返回字典
-					for k,v in parse.parsq_qs(qs, True).items():
+					for k,v in parse.parse_qs(qs, True).items():
 						kw[k] = v[0]
 		if kw is None:
 			'''若request中无参数
@@ -172,7 +173,7 @@ def add_route(app, fn):
 		raise ValueError('@get or @post not defined in %s.' % str(fn))
 	if not asyncio.iscoroutinefunction(fn) and not inspect.isgeneratorfunction(fn):
 		fn = asyncio.coroutine(fn)
-	logging.info('%s is a coroutine:%s' % (fn.__name__, asyncio.iscoroutinefunction(fn)))
+	#logging.info('%s is a coroutine:%s' % (fn.__name__, asyncio.iscoroutinefunction(fn)))
 	logging.info('add route %s %s => %s(%s)' %(method, path, fn.__name__, ','.join(inspect.signature(fn).parameters.keys())))
 	app.router.add_route(method, path, RequestHandler(app, fn))
 

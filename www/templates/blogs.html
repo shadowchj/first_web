@@ -14,13 +14,14 @@
     <div class="uk-width-medium-3-4">
     {% for blog in blogs %}
         <article class="uk-article">
-            <h2><a href="/blog/{{ blog.id }}">{{ blog.name }}</a></h2>
+            <h2>{{ blog.name }}</h2>
             <p class="uk-article-meta">发表于{{ blog.created_at|datetime }}</p>
             <p>{{ blog.summary }}</p>
             <p><a href="/blog/{{ blog.id }}">继续阅读 <i class="uk-icon-angle-double-right"></i></a></p>
         </article>
         <hr class="uk-article-divider">
     {% endfor %}
+    {{ pagination('/?page=', page) }}
     </div>
 
     <div class="uk-width-medium-1-4">

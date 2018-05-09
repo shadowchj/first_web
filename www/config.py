@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 import config_default
 
+#配置数据库信息configs
 def merge(defaults, override):
 	r = {}
 	for k,v in defaults.items():
