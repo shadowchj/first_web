@@ -42,12 +42,13 @@
                 <ul class="uk-navbar-nav">
                 {% if __user__ %}
                     <li class="uk-parent" data-uk-dropdown>
-                        <a href="#0"><i class="uk-icon-user"></i>{{ __user__.name }}</a>
+                        <a href="/user_eidt"><i class="uk-icon-user"></i>{{ __user__.name }}</a>
                         <div class="uk-dropdown uk-dropdown-navbar">
                             <ul class="uk-nav uk-nav-navbar">
                                 {% if __user__.admin %}
                                     <li><a href="/manage/"><i class="uk-icon-pencil">管理博客</i></a></li>
                                 {% endif %}
+                                <li><a href="/personal/edit"><i class="uk-icon-edit"></i>个人设置</a></li>
                                 <li><a href="/signout"><i class="uk-icon-sign-out"></i>登出</a></li>
                             </ul>
                         </div>

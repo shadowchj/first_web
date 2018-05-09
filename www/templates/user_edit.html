@@ -1,0 +1,92 @@
+{% extends '__base__.html' %}
+
+{% block title %}个人设置{% endblock %}
+
+{% block beforehead %}
+
+<script>
+
+$(function () {
+    var vm = new Vue({
+        el: '#vm',
+        data: {
+            id:'{{__user__.id}}',
+            email:'{{__user__.email}}',
+            name:'{{__user__.name}}',
+            oldpasswd: '',
+            newpasswd1: '',
+            newpasswd2: ''
+        },
+        methods: { 
+            submit: function (event) {
+                event.preventDefault();
+                var $form = $('#vm');
+                if (! this.name.trim()) {
+                    return $form.showFormError('新名字不能为空');
+                }
+                if (this.newpasswd1 !== this.newpasswd2) {
+                    return $form.showFormError('两次输入的新密码不一致');
+                }
+                $form.postJSON('/api/update_user',{
+                    id:this.id,
+                    name: this.name,
+                    oldpasswd: CryptoJS.SHA1(this.email + ':' + this.oldpasswd).toString(),
+                    newpasswd: CryptoJS.SHA1(this.email + ':' + this.newpasswd1).toString()
+                },function (err, r){
+                    if (err){
+                        return $form.showFormError(err);
+                    }
+                    alert('修改成功！将返回主页')
+                    return location.assign('/')
+                });
+            },
+            cancel: function(event){
+                return location.assign('/')
+            }
+        }
+    });
+    $('#vm').show();
+});
+
+</script>
+
+{% endblock %}
+
+{% block content %}
+
+    <div class="uk-width-2-3">
+        <h1>个人信息</h1>
+        <form id="vm" v-on="submit: submit" class="uk-form uk-form-stacked">
+            <div class="uk-alert uk-alert-danger uk-hidden"></div>
+            <div class="uk-form-row">
+                <label class="uk-form-label">新用户名:</label>
+                <div class="uk-form-controls">
+                    <input v-model="name" type="text" maxlength="50" placeholder=name class="uk-width-1-1">
+                </div>
+            </div>
+            <div class="uk-form-row">
+                <label class="uk-form-label">原密码:</label>
+                <div class="uk-form-controls">
+                    <input v-model="oldpasswd" type="password" maxlength="50" placeholder="输入原密码" class="uk-width-1-1">
+                </div>
+            </div>
+            <div class="uk-form-row">
+                <label class="uk-form-label">新密码:</label>
+                <div class="uk-form-controls">
+                    <input v-model="newpasswd1" type="password" maxlength="50" placeholder="输入新密码" class="uk-width-1-1">
+                </div>
+            </div>
+            <div class="uk-form-row">
+                <label class="uk-form-label">确认新密码:</label>
+                <div class="uk-form-controls">
+                    <input v-model="newpasswd2" type="password" maxlength="50" placeholder="重复密码" class="uk-width-1-1">
+                </div>
+            </div>
+            <div class="uk-form-row">
+                <button type="submit" class="uk-button uk-button-primary"><i class="uk-icon-user"></i>保存</button>
+                <button v-on="click: cancel" type="button" class="uk-button uk-button-primary"><i class="uk-icon-user"></i>取消</button>
+            </div>
+        </form>
+    </div>
+
+{% endblock %}

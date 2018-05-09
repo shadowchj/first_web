@@ -127,6 +127,10 @@ async def get_blog(id):
 		'comments': comments
 	}
 
+
+
+
+
 '''----------------管理员页面------------------------------------------------'''
 
 #返回重定向url ===> manage/comments
@@ -176,6 +180,12 @@ def manage_users(*, page='1'):
 		'page_index':get_page_index(page)
 	}
 
+#管理个人资料
+@get('/personal/edit')
+async def edit_user():
+	return{
+		'__template__': 'user_edit.html'
+	}
 
 #-------------------------------------后端api----------------------------------------
 
@@ -242,9 +252,11 @@ async def api_update_blog(id, request, *, name, summary, content):
 		raise APIValueError('summary', 'summary cannot be empty.')
 	if not content or not content.strip():
 		raise APIValueError('content', 'content cannot be empty.')
-	blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__.image,
-		name=name.strip(), summary=summary.strip(), content=content.strip())
-	await blog.save()
+	blog = await Blog.find(id)
+	blog.name = name.strip()
+	blog.summary = summary.strip()
+	blog.content = content.strip()
+	await blog.update()
 	return blog
 
 #删除某篇博客
@@ -325,7 +337,7 @@ async def api_register_user(*, email, name, passwd):
 	uid = next_id()
 	# 加密形式:next_id():passwd，数据库中保存其摘要hexdigest()。与上面验证的时候要保持一致
 	sha1_passwd = '%s:%s' % (uid, passwd)
-	user = User(id=uid, name=name.strip(),email=email,passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(),image='http://www.gravatar.com/avatar/%s?d=mm&s=120' % hashlib.md5(email.encode('utf-8')).hexdigest())
+	user = User(id=uid, name=name.strip(),email=email,passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(),image='http://www.gravatar.com/avatar/%s?d=robohash&s=120' % hashlib.md5(email.encode('utf-8')).hexdigest())
 	await user.save()
 	r = web.Response()
 	#set_cookie(name,value,*,path='/',expires=None,domain=None,max_age=None,secure=None,httponly=None,version=None)
@@ -335,4 +347,30 @@ async def api_register_user(*, email, name, passwd):
 	user.passwd = '******'
 	r.content_type = 'application/json'
 	r.body = json.dumps(users, ensure_ascii=False).encode('utf-8')
+	return r
+
+@post('/api/update_user')
+async def api_update_user(*, id, name, oldpasswd, newpasswd):
+	if not name or not name.strip():
+		raise APIValueError('name')
+	if not oldpasswd or not _RE_SHA1.match(oldpasswd):
+		raise APIValueError('oldpasswd')
+	if not newpasswd or not _RE_SHA1.match(newpasswd):
+		raise APIValueError('newpasswd')
+	user = await User.find(id)
+	sha1 = hashlib.sha1()
+	sha1.update(id.encode('utf-8'))
+	sha1.update(b':')
+	sha1.update(oldpasswd.encode('utf-8'))
+	if user.passwd != sha1.hexdigest():
+		raise APIValueError('passwd', '原密码输入错误')
+	user.name = name.strip()
+	sha1_passwd = '%s:%s' % (id, newpasswd)
+	user.passwd = hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest()
+	await user.update()
+	r = web.Response()
+	r.set_cookie(COOKIE_NAME, user2cookie(user, 86400), max_age=86400, httponly=True)
+	user.passwd = '******'
+	r.content_type = 'application/json'
+	r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
 	return r

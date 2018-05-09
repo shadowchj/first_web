@@ -42,6 +42,8 @@ async def auth(request, handler):
 		#此处判定/manage/的子url中的请求是否有权限，如果没有则返回signin登陆界面
 	if request.path.startswith('/manage/') and (request.__user__ is None or not request.__user__.admin):
 		return web.HTTPFound('/signin')
+	if request.path.startswith('/personal/') and request.__user__ is None:
+		return web.HTTPFound('signin')
 	#继续处理请求
 	return await handler(request)
 
